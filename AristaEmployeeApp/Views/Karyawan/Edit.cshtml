@@ -1,0 +1,69 @@
+@model AristaEmployeeApp.Models.Karyawan
+
+@{
+    ViewData["Title"] = "Edit Karyawan";
+}
+
+<h1>Edit Karyawan</h1>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit" id="employeeForm">
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="Aktif" />
+            
+            <div class="form-group">
+                <label asp-for="KodeKaryawan" class="control-label"></label>
+                <input asp-for="KodeKaryawan" class="form-control" id="txtKode" />
+                <span asp-validation-for="KodeKaryawan" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Nama" class="control-label"></label>
+                <input asp-for="Nama" class="form-control" />
+                <span asp-validation-for="Nama" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="PerusahaanId" class="control-label">Perusahaan</label>
+                <select asp-for="PerusahaanId" class="form-control" asp-items="ViewBag.PerusahaanId" id="ddlPerusahaan"></select>
+                <span asp-validation-for="PerusahaanId" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="CabangId" class="control-label">Cabang</label>
+                <select asp-for="CabangId" class="form-control" asp-items="ViewBag.CabangId" id="ddlCabang"></select>
+                <span asp-validation-for="CabangId" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mt-3">
+                <input type="submit" value="Update" class="btn btn-primary" />
+                <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function () {
+            $('#ddlPerusahaan').change(function () {
+                var id = $(this).val();
+                $('#ddlCabang').empty().append('<option value="">-- Pilih Cabang --</option>');
+                if (id) {
+                    $.get('/Karyawan/GetCabang?perusahaanId=' + id, function (data) {
+                        $.each(data, function (i, item) {
+                            $('#ddlCabang').append('<option value="' + item.id + '">' + item.nama + '</option>');
+                        });
+                    });
+                }
+            });
+        });
+    </script>
+}

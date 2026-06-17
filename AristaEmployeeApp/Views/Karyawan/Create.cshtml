@@ -1,0 +1,75 @@
+@model AristaEmployeeApp.Models.Karyawan
+
+@{
+    ViewData["Title"] = "Input Karyawan";
+}
+
+<h1>Input Karyawan</h1>
+
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Create" id="employeeForm">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            
+            <div class="form-group">
+                <label asp-for="KodeKaryawan" class="control-label"></label>
+                <input asp-for="KodeKaryawan" class="form-control" id="txtKode" />
+                <span asp-validation-for="KodeKaryawan" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Nama" class="control-label"></label>
+                <input asp-for="Nama" class="form-control" />
+                <span asp-validation-for="Nama" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="PerusahaanId" class="control-label">Perusahaan</label>
+                <select asp-for="PerusahaanId" class="form-control" asp-items="ViewBag.PerusahaanId" id="ddlPerusahaan">
+                    <option value="">-- Pilih Perusahaan --</option>
+                </select>
+                <span asp-validation-for="PerusahaanId" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="CabangId" class="control-label">Cabang</label>
+                <select asp-for="CabangId" class="form-control" id="ddlCabang">
+                    <option value="">-- Pilih Cabang --</option>
+                </select>
+                <span asp-validation-for="CabangId" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mt-3">
+                <input type="submit" value="Save" class="btn btn-primary" />
+                <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function () {
+            $('#ddlPerusahaan').change(function () {
+                var id = $(this).val();
+                $('#ddlCabang').empty().append('<option value="">-- Pilih Cabang --</option>');
+                if (id) {
+                    $.get('/Karyawan/GetCabang?perusahaanId=' + id, function (data) {
+                        $.each(data, function (i, item) {
+                            $('#ddlCabang').append('<option value="' + item.id + '">' + item.nama + '</option>');
+                        });
+                    });
+                }
+            });
+
+            $('#employeeForm').submit(function(e) {
+                var kode = $('#txtKode').val();
+                if (kode.length !== 5) {
+                    alert('Kode Karyawan wajib 5 digit!');
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+}
