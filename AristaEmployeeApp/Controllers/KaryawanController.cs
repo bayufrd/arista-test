@@ -1,134 +1,196 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using AristaEmployeeApp.Data;
 using AristaEmployeeApp.Models;
+using AristaEmployeeApp.Services;
 
 namespace AristaEmployeeApp.Controllers
 {
     public class KaryawanController : Controller
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IKaryawanService _karyawanService;
 
-        public KaryawanController(ApplicationDbContext context)
+        public KaryawanController(IKaryawanService karyawanService)
         {
-            _context = context;
+            _karyawanService = karyawanService;
         }
 
         public async Task<IActionResult> Index()
         {
-            var data = await _context.Karyawans
-                .Include(k => k.Cabang)
-                    .ThenInclude(c => c.Perusahaan)
-                .Where(k => k.Aktif)
-                .ToListAsync();
-            return View(data);
+            var employees = await _karyawanService.GetActiveEmployeesAsync();
+            var viewModel = employees.Select(e => new KaryawanViewModel
+            {
+                Id = e.Id,
+                KodeKaryawan = e.KodeKaryawan,
+                Nama = e.Nama,
+                NamaPerusahaan = e.Cabang?.Perusahaan?.Nama,
+                NamaCabang = e.Cabang?.Nama
+            });
+
+            if (Request.Headers["Accept"].ToString().Contains("application/json"))
+            {
+                return Json(viewModel);
+            }
+
+            return View(viewModel);
         }
 
         public async Task<IActionResult> Create()
         {
-            ViewBag.PerusahaanId = new SelectList(await _context.Perusahaans.Where(p => p.Aktif).ToListAsync(), "Id", "Nama");
-            return View();
+            var viewModel = new KaryawanViewModel
+            {
+                PerusahaanList = new SelectList(await _karyawanService.GetActiveCompaniesAsync(), "Id", "Nama")
+            };
+            return View(viewModel);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Karyawan karyawan)
+        public async Task<IActionResult> Create(KaryawanViewModel model)
         {
-            if (karyawan.KodeKaryawan?.Length != 5)
-            {
-                ModelState.AddModelError("KodeKaryawan", "Kode Karyawan wajib 5 digit.");
-            }
-
-            var existing = await _context.Karyawans
-                .AnyAsync(k => k.KodeKaryawan == karyawan.KodeKaryawan && k.Aktif);
-            
-            if (existing)
+            if (await _karyawanService.IsCodeDuplicateAsync(model.KodeKaryawan))
             {
                 ModelState.AddModelError("KodeKaryawan", "Kode Karyawan sudah terdaftar dan masih aktif.");
             }
 
             if (ModelState.IsValid)
             {
-                try
+                var karyawan = new Karyawan
                 {
-                    _context.Add(karyawan);
-                    await _context.SaveChangesAsync();
+                    KodeKaryawan = model.KodeKaryawan,
+                    Nama = model.Nama,
+                    CabangId = model.CabangId,
+                    Aktif = true
+                };
+
+                if (await _karyawanService.CreateEmployeeAsync(karyawan))
+                {
                     TempData["Success"] = "Data Berhasil Disimpan";
                     return RedirectToAction(nameof(Edit), new { id = karyawan.Id });
                 }
-                catch
-                {
-                    TempData["Error"] = "Data Gagal Disimpan";
-                }
+                TempData["Error"] = "Data Gagal Disimpan";
             }
 
-            ViewBag.PerusahaanId = new SelectList(await _context.Perusahaans.Where(p => p.Aktif).ToListAsync(), "Id", "Nama", karyawan.PerusahaanId);
-            ViewBag.CabangId = new SelectList(await _context.Cabangs.Where(c => c.PerusahaanId == karyawan.PerusahaanId && c.Aktif).ToListAsync(), "Id", "Nama", karyawan.CabangId);
-            return View(karyawan);
+            model.PerusahaanList = new SelectList(await _karyawanService.GetActiveCompaniesAsync(), "Id", "Nama", model.PerusahaanId);
+            model.CabangList = new SelectList(await _karyawanService.GetBranchesByCompanyAsync(model.PerusahaanId), "Id", "Nama", model.CabangId);
+            return View(model);
         }
 
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
-            var karyawan = await _context.Karyawans
-                .Include(k => k.Cabang)
-                .FirstOrDefaultAsync(k => k.Id == id);
-            
-            if (karyawan == null) return NotFound();
+            var e = await _karyawanService.GetEmployeeByIdAsync(id.Value);
+            if (e == null) return NotFound();
 
-            karyawan.PerusahaanId = karyawan.Cabang?.PerusahaanId ?? 0;
+            var viewModel = new KaryawanViewModel
+            {
+                Id = e.Id,
+                KodeKaryawan = e.KodeKaryawan,
+                Nama = e.Nama,
+                PerusahaanId = e.Cabang?.PerusahaanId ?? 0,
+                CabangId = e.CabangId,
+                Aktif = e.Aktif,
+                PerusahaanList = new SelectList(await _karyawanService.GetActiveCompaniesAsync(), "Id", "Nama", e.Cabang?.PerusahaanId),
+                CabangList = new SelectList(await _karyawanService.GetBranchesByCompanyAsync(e.Cabang?.PerusahaanId ?? 0), "Id", "Nama", e.CabangId)
+            };
 
-            ViewBag.PerusahaanId = new SelectList(await _context.Perusahaans.Where(p => p.Aktif).ToListAsync(), "Id", "Nama", karyawan.PerusahaanId);
-            ViewBag.CabangId = new SelectList(await _context.Cabangs.Where(c => c.PerusahaanId == karyawan.PerusahaanId && c.Aktif).ToListAsync(), "Id", "Nama", karyawan.CabangId);
-            return View(karyawan);
+            if (Request.Headers["Accept"].ToString().Contains("application/json"))
+            {
+                return Json(viewModel);
+            }
+
+            return View(viewModel);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetEmployee(int id)
+        {
+            var e = await _karyawanService.GetEmployeeByIdAsync(id);
+            if (e == null) return NotFound();
+
+            var viewModel = new KaryawanViewModel
+            {
+                Id = e.Id,
+                KodeKaryawan = e.KodeKaryawan,
+                Nama = e.Nama,
+                NamaPerusahaan = e.Cabang?.Perusahaan?.Nama,
+                NamaCabang = e.Cabang?.Nama,
+                Aktif = e.Aktif
+            };
+
+            return Json(viewModel);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Karyawan karyawan)
+        public async Task<IActionResult> Edit(int id, KaryawanViewModel model)
         {
-            if (id != karyawan.Id) return NotFound();
+            if (id != model.Id) return NotFound();
+
+            if (await _karyawanService.IsCodeDuplicateExcludeIdAsync(model.KodeKaryawan, model.Id))
+            {
+                ModelState.AddModelError("KodeKaryawan", "Kode Karyawan sudah terdaftar dan masih aktif.");
+            }
 
             if (ModelState.IsValid)
             {
-                try
+                var karyawan = new Karyawan
                 {
-                    _context.Update(karyawan);
-                    await _context.SaveChangesAsync();
+                    Id = model.Id,
+                    KodeKaryawan = model.KodeKaryawan,
+                    Nama = model.Nama,
+                    CabangId = model.CabangId,
+                    Aktif = model.Aktif
+                };
+
+                if (await _karyawanService.UpdateEmployeeAsync(karyawan))
+                {
                     TempData["Success"] = "Data Berhasil Diupdate";
                 }
-                catch
+                else
                 {
                     TempData["Error"] = "Data Gagal Diupdate";
                 }
             }
-            ViewBag.PerusahaanId = new SelectList(await _context.Perusahaans.Where(p => p.Aktif).ToListAsync(), "Id", "Nama", karyawan.PerusahaanId);
-            ViewBag.CabangId = new SelectList(await _context.Cabangs.Where(c => c.PerusahaanId == karyawan.PerusahaanId && c.Aktif).ToListAsync(), "Id", "Nama", karyawan.CabangId);
-            return View(karyawan);
+            model.PerusahaanList = new SelectList(await _karyawanService.GetActiveCompaniesAsync(), "Id", "Nama", model.PerusahaanId);
+            model.CabangList = new SelectList(await _karyawanService.GetBranchesByCompanyAsync(model.PerusahaanId), "Id", "Nama", model.CabangId);
+            return View(model);
         }
 
         [HttpPost]
         public async Task<IActionResult> Delete(int id)
         {
-            var karyawan = await _context.Karyawans.FindAsync(id);
-            if (karyawan != null)
-            {
-                karyawan.Aktif = false;
-                await _context.SaveChangesAsync();
-                return Json(new { success = true });
-            }
-            return Json(new { success = false });
+            var success = await _karyawanService.SoftDeleteEmployeeAsync(id);
+            return Json(new { success });
         }
 
         [HttpGet]
         public async Task<JsonResult> GetCabang(int perusahaanId)
         {
-            var cabangs = await _context.Cabangs
-                .Where(c => c.PerusahaanId == perusahaanId && c.Aktif)
-                .Select(c => new { id = c.Id, nama = c.Nama })
-                .ToListAsync();
-            return Json(cabangs);
+            var cabangs = await _karyawanService.GetBranchesByCompanyAsync(perusahaanId);
+            var result = cabangs.Select(c => new { id = c.Id, nama = c.Nama });
+            return Json(result);
+        }
+
+        [HttpGet]
+        public async Task<JsonResult> GetPerusahaan()
+        {
+            var companies = await _karyawanService.GetActiveCompaniesAsync();
+            var result = companies.Select(p => new { id = p.Id, nama = p.Nama });
+            return Json(result);
+        }
+
+        [HttpGet]
+        public async Task<JsonResult> GetAllCabang()
+        {
+            // Assuming we need a way to get all active branches
+            var companies = await _karyawanService.GetActiveCompaniesAsync();
+            var allBranches = new List<object>();
+            foreach (var comp in companies)
+            {
+                var branches = await _karyawanService.GetBranchesByCompanyAsync(comp.Id);
+                allBranches.AddRange(branches.Select(c => new { id = c.Id, nama = c.Nama, perusahaanId = c.PerusahaanId, namaPerusahaan = comp.Nama }));
+            }
+            return Json(allBranches);
         }
     }
 }

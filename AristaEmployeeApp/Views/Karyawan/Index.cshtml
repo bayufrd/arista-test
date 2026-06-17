@@ -1,4 +1,4 @@
-@model IEnumerable<AristaEmployeeApp.Models.Karyawan>
+@model IEnumerable<AristaEmployeeApp.Models.KaryawanViewModel>
 
 @{
     ViewData["Title"] = "Daftar Karyawan";
@@ -30,8 +30,8 @@
         <tr id="row-@item.Id">
             <td>@item.KodeKaryawan</td>
             <td>@item.Nama</td>
-            <td>@(item.Cabang?.Perusahaan?.Nama ?? "-")</td>
-            <td>@(item.Cabang?.Nama ?? "-")</td>
+            <td>@item.NamaPerusahaan</td>
+            <td>@item.NamaCabang</td>
             <td>
                 <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-warning">Edit</a>
                 <button onclick="deleteKaryawan(@item.Id)" class="btn btn-sm btn-danger">Delete</button>

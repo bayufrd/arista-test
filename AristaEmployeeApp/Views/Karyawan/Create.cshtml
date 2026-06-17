@@ -1,4 +1,4 @@
-@model AristaEmployeeApp.Models.Karyawan
+@model AristaEmployeeApp.Models.KaryawanViewModel
 
 @{
     ViewData["Title"] = "Input Karyawan";
@@ -12,6 +12,22 @@
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             
             <div class="form-group">
+                <label asp-for="PerusahaanId" class="control-label">Perusahaan</label>
+                <select asp-for="PerusahaanId" class="form-control" asp-items="Model.PerusahaanList" id="ddlPerusahaan">
+                    <option value="">-- Pilih Perusahaan --</option>
+                </select>
+                <span asp-validation-for="PerusahaanId" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="CabangId" class="control-label">Cabang</label>
+                <select asp-for="CabangId" class="form-control" asp-items="Model.CabangList" id="ddlCabang">
+                    <option value="">-- Pilih Cabang --</option>
+                </select>
+                <span asp-validation-for="CabangId" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
                 <label asp-for="KodeKaryawan" class="control-label"></label>
                 <input asp-for="KodeKaryawan" class="form-control" id="txtKode" />
                 <span asp-validation-for="KodeKaryawan" class="text-danger"></span>
@@ -21,22 +37,6 @@
                 <label asp-for="Nama" class="control-label"></label>
                 <input asp-for="Nama" class="form-control" />
                 <span asp-validation-for="Nama" class="text-danger"></span>
-            </div>
-
-            <div class="form-group">
-                <label asp-for="PerusahaanId" class="control-label">Perusahaan</label>
-                <select asp-for="PerusahaanId" class="form-control" asp-items="ViewBag.PerusahaanId" id="ddlPerusahaan">
-                    <option value="">-- Pilih Perusahaan --</option>
-                </select>
-                <span asp-validation-for="PerusahaanId" class="text-danger"></span>
-            </div>
-
-            <div class="form-group">
-                <label asp-for="CabangId" class="control-label">Cabang</label>
-                <select asp-for="CabangId" class="form-control" id="ddlCabang">
-                    <option value="">-- Pilih Cabang --</option>
-                </select>
-                <span asp-validation-for="CabangId" class="text-danger"></span>
             </div>
 
             <div class="form-group mt-3">

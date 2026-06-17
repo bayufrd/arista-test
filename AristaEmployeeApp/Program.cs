@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using AristaEmployeeApp.Data;
+using AristaEmployeeApp.Repositories;
+using AristaEmployeeApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +10,14 @@ builder.Services.AddControllersWithViews();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register Repositories
+builder.Services.AddScoped<IKaryawanRepository, KaryawanRepository>();
+builder.Services.AddScoped<IPerusahaanRepository, PerusahaanRepository>();
+builder.Services.AddScoped<ICabangRepository, CabangRepository>();
+
+// Register Services
+builder.Services.AddScoped<IKaryawanService, KaryawanService>();
 
 var app = builder.Build();
 
